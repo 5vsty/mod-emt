@@ -1,0 +1,24 @@
+{
+  "e7931f2f-80a5-4c2c-9899-6de5df71256e": {
+    "ModuleVersion": "0.0.0",
+    "ModuleInstanceName": "Emt",
+    "Active": true,
+    "TranslationsPath": "",
+    "Retention": {
+      "CleanupIntervalHours": 24
+    },
+    "Location": {
+      "Enabled": true,
+      "FdfVersion": 1,
+      "ProjectPath": "Config/project.json",
+      "SelectableAreaTypes": []
+    },
+    "ErrorNumber": {
+      "Prefix": "EMT-",
+      "MinDigits": 6
+    },
+    "List": {
+      "LiveUpdateDebounceMs": 1000
+    }
+  }
+}

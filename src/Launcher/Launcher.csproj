@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<OutputPath>$(SolutionDir)/bin/$(Configuration)/</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<RootNamespace>FSDEV.MOD.Emt.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+		<AssemblyName>FSDEV.MOD.Emt</AssemblyName>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="../Emt_Server/Emt_Server.csproj" />
+	</ItemGroup>
+
+	<!-- Output current git revesion to output folder -->
+	<PropertyGroup>
+		<GitInfoFile>$(OutputPath)$(AssemblyName)_VERSION.txt</GitInfoFile>
+	</PropertyGroup>
+
+	<Target Name="GenerateGitInfo" AfterTargets="Build">
+		<PropertyGroup>
+			<IsLinux>false</IsLinux>
+			<IsLinux Condition="Exists('/bin/bash')">true</IsLinux>
+		</PropertyGroup>
+
+		<!-- Windows commands -->
+		<Message Condition="'$(IsLinux)' == 'false'" Text="Generate Git Info for Windows" Importance="high" />
+		<Exec Condition="'$(IsLinux)' == 'false'" Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)Scripts/GetGitInfo.ps1&quot; -GitInfoFile &quot;$(GitInfoFile)&quot;" />
+
+		<!-- Linux commands -->
+		<Message Condition="'$(IsLinux)' == 'true'" Text="Generate Git Info for Linux" Importance="high" />
+		<Exec Condition="'$(IsLinux)' == 'true'" Command="/bin/bash $(ProjectDir)Scripts/GetGitInfo.sh $(GitInfoFile)" />
+	</Target>
+
+</Project>

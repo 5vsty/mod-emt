@@ -1,0 +1,27 @@
+{
+  "ModuleId": "33d46b35-cf3a-4ab4-aa07-d3f58cfe5d7f",
+  "Name": "EMT",
+  "Scope": [
+    "b3c5933c-a4c0-4bdc-ba61-518f6041a89b"
+  ],
+  "Permissions": {
+    "Report-Errors": {
+      "Index": 1,
+      "b3c5933c-a4c0-4bdc-ba61-518f6041a89b": [
+        "bd8f31f8-a52c-4781-a2b3-32e7f2e56060"
+      ]
+    },
+    "Manage-Errors": {
+      "Index": 2,
+      "b3c5933c-a4c0-4bdc-ba61-518f6041a89b": [
+        "bd8f31f8-a52c-4781-a2b3-32e7f2e56060"
+      ]
+    },
+    "Manage-Catalog": {
+      "Index": 3,
+      "b3c5933c-a4c0-4bdc-ba61-518f6041a89b": [
+        "bd8f31f8-a52c-4781-a2b3-32e7f2e56060"
+      ]
+    }
+  }
+}

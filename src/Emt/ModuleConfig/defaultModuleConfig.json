@@ -1,0 +1,20 @@
+{
+  "Active": false,
+  "TranslationsPath": "",
+  "Retention": {
+    "CleanupIntervalHours": 24
+  },
+  "Location": {
+    "Enabled": true,
+    "FdfVersion": 1,
+    "ProjectPath": "Config/project.json",
+    "SelectableAreaTypes": []
+  },
+  "ErrorNumber": {
+    "Prefix": "EMT-",
+    "MinDigits": 6
+  },
+  "List": {
+    "LiveUpdateDebounceMs": 1000
+  }
+}

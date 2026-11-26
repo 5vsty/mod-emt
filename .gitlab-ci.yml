@@ -1,0 +1,103 @@
+include:
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/build-and-test/dotnet/build@2
+    inputs:
+      stage_checks: analysis
+      stage_build: build
+      tags: ["docker-windows"]
+      dotnet_version: 8
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/code-intelligence/dotnet@2
+    inputs:
+      stage: convenience
+      depends_on: ["build"]
+      tags_windows: ["docker-windows"]
+      tags_linux: ["docker", "linux"]
+      dotnet_version: 8
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/sonarqube/dotnet@1
+    inputs:
+      stage: analysis
+      sonar_project_key: $SONAR_PROJECT_KEY
+      sonar_host_url: $SONAR_HOST_URL
+      sonar_token: $SONAR_TOKEN
+      depends_on: ["build"]
+      tags: ["docker-windows"]
+      dotnet_version: 8
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/prerelease-version-check/dotnet@1
+    inputs:
+      stage: analysis
+      dotnet_version: 8
+      tags: ["linux", "docker"]
+      depends_on: []
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/convention-checks/commit-checks@1
+    inputs:
+      stage: analysis
+      tags: ["linux", "docker"]
+      depends_on: []
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/publish/nuget@1
+    inputs:
+      nuget_token: $PACKAGE_REGISTRY_TOKEN
+      stage: publish
+      depends_on: ["build"]
+      tags: ["docker-windows"]
+      dotnet_version: 8
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/publish/docker-windows@1
+    inputs:
+      dockerfile: Dockerfile.windows-ltsc2019
+      stage: publish
+      tag_suffix: "windows-ltsc2019"
+      tags: ["docker-builds-windows"]
+      depends_on: ["build"]
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/publish/docker-linux@1
+    inputs:
+      dockerfile: Dockerfile.linux
+      stage: publish
+      tag_suffix: "linux"
+      tags: ["docker", "linux"]
+      depends_on: ["build"]
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/publish/docker-meta@1
+    inputs:
+      image_tag_suffixes: ["windows-ltsc2019", "linux"]
+      stage: publish
+      tags: ["docker", "linux"]
+      depends_on:
+        - !reference [
+            .publish_docker_jobs_dependencies_Dockerfile.windows-ltsc2019,
+          ]
+        - !reference [.publish_docker_jobs_dependencies_Dockerfile.linux]
+
+  - component: $CI_SERVER_FQDN/fsdev/common/ci-cd-components/publish/release@1
+    inputs:
+      release_files:
+        - bin/Release.zip
+      stage: publish
+      tags: ["docker", "linux"]
+      depends_on:
+        - "build"
+        - !reference [.publish_nuget_jobs_dependencies_Solution]
+        - !reference [.publish_docker_meta_jobs_dependencies]
+
+#see https://docs.gitlab.com/ee/ci/yaml/workflow.html#switch-between-branch-pipelines-and-merge-request-pipelines
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+variables:
+  GIT_SUBMODULE_FORCE_HTTPS: "true"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+stages:
+  - build
+  - analysis
+  - convenience
+  - publish

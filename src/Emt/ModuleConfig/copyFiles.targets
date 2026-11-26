@@ -1,0 +1,9 @@
+﻿<Project>
+	<ItemGroup>
+		<Files Include="$(MSBuildThisFileDirectory)../contentFiles/bin/**/*.*" />
+	</ItemGroup>
+
+	<Target Name="CopyConfigFile" AfterTargets="Build">
+		<Copy SourceFiles="@(Files)" DestinationFolder="$(OutputPath)/%(RecursiveDir)" SkipUnchangedFiles="true"/>
+	</Target>
+</Project>

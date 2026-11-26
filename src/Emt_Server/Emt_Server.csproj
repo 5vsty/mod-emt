@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<OutputPath>$(SolutionDir)/bin/$(Configuration)/</OutputPath>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<RootNamespace>FSDEV.MOD.Emt.$(MSBuildProjectName.Replace(" ", "_"))</RootNamespace>
+		<AssemblyName>FSDEV.MOD.Emt.$(MSBuildProjectName)</AssemblyName>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FSDEV.AMF.Controls.CSharpControls.Table" Version="7.2.0" />
+		<PackageReference Include="FSDEV.Common.FDF.IlpParser.IlpParser" Version="1.2.0" />
+		<PackageReference Include="FSDEV.Common.Logger" Version="2.3.0" />
+		<PackageReference Include="FSDEV.FES.Server.Client" Version="3.7.0" />
+		<PackageReference Include="FSDEV.ILP.Intralogistikplattform.SystemState_Client" Version="4.1.0" />
+		<PackageReference Include="FSDEV.MOD.Notifications.Notifications_Client" Version="0.0.0" />
+		<PackageReference Include="FSDEV.MOD.UserManager.UserManager_Client" Version="6.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="../Emt/Emt.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="FSDEV.MOD.Emt.Emt_Test" />
+	</ItemGroup>
+
+	<!--NUGET DEFINITION START-->
+	<PropertyGroup>
+		<PackageId>$(AssemblyName)</PackageId>
+		<Authors>flexlog</Authors>
+		<Company>flexlog</Company>
+		<Copyright>flexlog</Copyright>
+		<Version>0.0.0</Version>
+		<Description>Emt_Server</Description>
+		<PackageProjectUrl>http://git.flexlog.site/fsdev/mod/emt</PackageProjectUrl>
+		<IsPackable>true</IsPackable>
+		<!-- Debug-Symbols and Source-Code -->
+		<DebugType>embedded</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+		<IncludeSource>true</IncludeSource>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<RepositoryUrl>http://git.flexlog.site/fsdev/mod/emt</RepositoryUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.SourceLink.GitLab" Version="8.0.0" PrivateAssets="all" />
+	</ItemGroup>
+	<!--NUGET DEFINITION END-->
+
+</Project>
