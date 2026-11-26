@@ -21,9 +21,12 @@ public class CatalogAdminService
     private readonly RetentionJob Retention;
     private readonly ErrorPushService Push;
     private readonly IClock Clock;
+    private readonly string NotificationsState;
 
-    public CatalogAdminService(CatalogStore catalog, SettingsStore settings, EmtPermissionService permissions, ErrorIndex index, RetentionJob retention, ErrorPushService push, IClock clock)
+    /// <param name="notificationsState">Enabled or Disabled, shown in the health block of the settings page.</param>
+    public CatalogAdminService(CatalogStore catalog, SettingsStore settings, EmtPermissionService permissions, ErrorIndex index, RetentionJob retention, ErrorPushService push, IClock clock, string notificationsState = "Disabled")
     {
+        NotificationsState = notificationsState;
         Catalog = catalog;
         Settings = settings;
         Permissions = permissions;
@@ -114,13 +117,13 @@ public class CatalogAdminService
     }
 
     /// <summary>
-    /// The health block of the settings page (07 funcGetSettings). The notification and archive entries are fixed values: the Notifications
-    /// integration is postponed and there is no archive, all errors stay on ILP (conditions of the Gate 2 approval).
+    /// The health block of the settings page (07 funcGetSettings). The archive entries are fixed values: there is no archive, all errors stay on ILP
+    /// (conditions of the Gate 2 approval). The notifications state follows the module config (Notifications.Enabled).
     /// </summary>
     public JObject GetHealth() => new()
     {
         ["ManagersCount"] = Permissions.GetUsersWithPermission(Constants.Permissions.MANAGE_ERRORS).Count,
-        ["NotificationsState"] = "Disabled",
+        ["NotificationsState"] = NotificationsState,
         ["PendingNotificationRetries"] = 0,
         ["LastRetentionRun"] = Retention.LastRunAt,
         ["IlpErrorCount"] = Index.Count,

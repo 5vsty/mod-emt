@@ -35,9 +35,24 @@ The module is **inactive by default** (`Active: false`): it then only sends `Loa
 | `ErrorNumber.Prefix` / `MinDigits` | `EMT-` / `6` |
 | `List.LiveUpdateDebounceMs` | `1000` |
 
+## Notifications
+
+With `Notifications.Enabled: true` and a valid `Notifications.FacilityId` (a facility group of the Notifications module) in `emtConfig.json`, every new error creates one notification (`Notifications_Client`, application name `Emt`):
+
+| Item | Value |
+|---|---|
+| Notification types | `EMT_ERROR_INFO`, `EMT_ERROR_WARNING`, `EMT_ERROR_ERROR`, `EMT_ERROR_CRITICAL` (severity level `INFO`, `WARN`, `ERR`, `ERR`), created on first use; message key `EMT_NOTIFICATION_NEW_ERROR` |
+| Custom fields | `ErrorNumber`, `ErrorCode`, `CodeTitle` (+ `_de`, `_en`), `LocationPath`, `ReporterName`, `Severity` |
+| Referenced id | the error id |
+| Archive | when the error is resolved, closed, rejected or cancelled; re-opening a resolved error creates no new notification |
+
+The work runs in the background in the order of the changes (`NotificationObserver`), so a slow or missing Notifications module never delays a report. The result is kept on the error: `NotificationId` and `NotificationState` (`None`, `Active`, `Archived`, `Failed`). EMT starts and works without the Notifications module. The Notifications module shows a notification to everybody; limiting it to the error managers is a task of that module.
+
+Note: the config in ILP is created by ConfigurationManager only once; to switch the notifications on for an existing site the `Notifications` values must be changed in ILP as well, not only in the json file.
+
 ## Known limitations
 
-- Notifications are not part of this version (E7 postponed, D-13). New errors do not create a notification. The health block of the settings page reports `NotificationsState: "Disabled"`.
+- Notifications are optional and off by default, see "Notifications" below.
 - The facility structure is read with the IlpParser, which opens its own ILP connection for every read. The locations are cached for 10 minutes.
 - Package versions are the ones available in the local NuGet cache (`FSDEV.FES.Server.Client` 3.7.0, `CSharpControls.Table` 7.2.0, `SystemState_Client` 4.1.0, `Common.Logger` 2.3.0, `UserManager_Client` 6.0.0, `IlpParser` 1.2.0), not the set of `MOD/notifications@develop`.
 - The ChangeRequests against a real ILP were only checked against the ILP library in unit tests, not against a running ILP server.

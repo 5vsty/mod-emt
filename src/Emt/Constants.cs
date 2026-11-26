@@ -30,6 +30,10 @@ public static class Constants
 
             public const string LIST = "List";
             public const string LIVE_UPDATE_DEBOUNCE_MS = "LiveUpdateDebounceMs";
+
+            public const string NOTIFICATIONS = "Notifications";
+            public const string NOTIFICATIONS_ENABLED = "Enabled";
+            public const string NOTIFICATIONS_FACILITY_ID = "FacilityId";
         }
 
         public static class Paths

@@ -3,9 +3,11 @@ using FSDEV.MOD.Emt.Emt.Domain;
 using FSDEV.MOD.Emt.Emt.Validation;
 using FSDEV.MOD.Emt.Emt_Server.Catalog;
 using FSDEV.MOD.Emt.Emt_Server.Locations;
+using FSDEV.MOD.Emt.Emt_Server.Notifications;
 using FSDEV.MOD.Emt.Emt_Server.Security;
 using FSDEV.MOD.Emt.Emt_Server.Storage;
 using System.Collections.Concurrent;
+using System.Diagnostics.CodeAnalysis;
 using Constants = FSDEV.MOD.Emt.Emt.Constants;
 
 namespace FSDEV.MOD.Emt.Emt_Server.Errors;
@@ -20,7 +22,7 @@ public record ReportFormData(List<ErrorCode> Codes, IReadOnlyList<LocationOption
 /// The business logic of the errors. Every operation checks the permission of the calling user itself, the user always comes from
 /// the session and never from the payload (BR-06). An error is only changed after the new state was written to ILP successfully.
 /// </summary>
-public class ErrorService
+public class ErrorService : INotificationStateStore
 {
     private const string LOG_PREFIX = $"[{nameof(ErrorService)}]";
 
@@ -52,6 +54,44 @@ public class ErrorService
     }
 
     public void AddObserver(IErrorObserver observer) => Observers.Add(observer);
+
+    public bool TryGet(Guid errorId, [NotNullWhen(true)] out ErrorRecord? error)
+    {
+        if (Index.TryGet(errorId, out var current))
+        {
+            error = current.Clone();
+            return true;
+        }
+
+        error = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Remembers the notification of an error (FR-24). Written under the lock of the error like every change, but it is no change of the error:
+    /// no version, no event, no message to the tables.
+    /// </summary>
+    public bool TrySetNotification(Guid errorId, string notificationId, string state)
+    {
+        lock (ErrorLocks.GetOrAdd(errorId, _ => new object()))
+        {
+            if (!Index.TryGet(errorId, out var current))
+            {
+                return false;
+            }
+
+            var updated = current.Clone();
+            updated.NotificationId = notificationId;
+            updated.NotificationState = state;
+            if (!Store.TryUpdate(updated))
+            {
+                return false;
+            }
+
+            Index.Set(updated);
+            return true;
+        }
+    }
 
     public OperationResult<ReportFormData> GetReportFormData(Guid userId)
     {

@@ -12,6 +12,7 @@ using FSDEV.MOD.Emt.Emt.ModuleConfig;
 using FSDEV.MOD.Emt.Emt_Server.Catalog;
 using FSDEV.MOD.Emt.Emt_Server.Errors;
 using FSDEV.MOD.Emt.Emt_Server.Locations;
+using FSDEV.MOD.Emt.Emt_Server.Notifications;
 using FSDEV.MOD.Emt.Emt_Server.Security;
 using FSDEV.MOD.Emt.Emt_Server.Storage;
 using FSDEV.MOD.Emt.Emt_Server.Tables;
@@ -201,13 +202,20 @@ public class EmtServer
         errors.AddObserver(myErrorsTables);
         errors.AddObserver(push);
 
+        if (Config.NotificationsEnabled)
+        {
+            // FR-24, FR-25: the notification of an error is created and archived in the background, EMT works without the Notifications module
+            errors.AddObserver(new NotificationObserver(new IlpNotificationPublisher(ilp, Constants.Service.APP_NAME, Config.NotificationsFacilityId), errors, StoppingToken));
+            Logging.Log(LogLevel.Info, $"{LOG_PREFIX} Notifications are enabled for facility {Config.NotificationsFacilityId}");
+        }
+
         Retention = new RetentionJob(store, index, settings, clock, error =>
         {
             errorListTable.OnErrorChanged(error, ErrorChangeType.Deleted);
             myErrorsTables.OnErrorChanged(error, ErrorChangeType.Deleted);
         });
 
-        var admin = new CatalogAdminService(catalog, settings, permissions, index, Retention, push, clock);
+        var admin = new CatalogAdminService(catalog, settings, permissions, index, Retention, push, clock, Config.NotificationsEnabled ? "Enabled" : "Disabled");
 
         var wsMessageHandler = new MessageHandler.MessageHandler(errors, admin, myErrorsTables);
         if (!wsMessageHandler.TryInitialize(FsClient))
