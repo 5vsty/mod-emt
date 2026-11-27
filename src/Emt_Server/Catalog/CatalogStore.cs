@@ -73,6 +73,45 @@ public class CatalogStore
         }
     }
 
+    /// <summary>
+    /// Reads the catalog from the storage again: somebody else can change it (the configuration manager that fills the states from its files after EMT
+    /// started, an administrator). Only a real difference raises <see cref="Changed"/>.
+    /// </summary>
+    /// <returns>true when the codes were read; <paramref name="changed"/> tells whether they differ from the ones in memory.</returns>
+    public bool TryReload(out bool changed)
+    {
+        changed = false;
+        if (!Storage.TryLoadAll(out var codes))
+        {
+            return false;
+        }
+
+        lock (Lock)
+        {
+            var loaded = codes.ToDictionary(code => code.Id);
+            if (!loaded.ContainsKey(Guid.Parse(Constants.Catalog.OTHER_CODE_ID)) && Codes.TryGetValue(Guid.Parse(Constants.Catalog.OTHER_CODE_ID), out var other))
+            {
+                loaded[other.Id] = other;
+            }
+
+            changed = loaded.Count != Codes.Count || loaded.Any(entry => !Codes.TryGetValue(entry.Key, out var known) || known.Version != entry.Value.Version || known.ChangedAt != entry.Value.ChangedAt);
+            if (!changed)
+            {
+                return true;
+            }
+
+            Codes.Clear();
+            foreach (var entry in loaded)
+            {
+                Codes[entry.Key] = entry.Value;
+            }
+
+            ChangeCounter++;
+            Changed?.Invoke();
+            return true;
+        }
+    }
+
     public static ErrorCode CreateOtherCode(long now) => new()
     {
         Id = Guid.Parse(Constants.Catalog.OTHER_CODE_ID),

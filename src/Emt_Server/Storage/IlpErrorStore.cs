@@ -86,14 +86,21 @@ public class IlpErrorStore : IErrorStore
     {
         value = 0;
 
-        if (!Ilp.TryGetState(Constants.Ilp.Paths.ERROR_NUMBER, out var state) || state is not LongState sequenceState)
+        // a number on ILP can come back as an IntState when it is small (see IlpNumberReading)
+        if (Ilp.TryGetState(Constants.Ilp.Paths.ERROR_NUMBER, out var state) && state is LongState sequenceState)
         {
-            Logging.Log(LogLevel.Error, $"{LOG_PREFIX}[{nameof(TryReadSequence)}] Sequence not found or not a longState: {Constants.Ilp.Paths.ERROR_NUMBER}");
-            return false;
+            value = sequenceState.Value;
+            return true;
         }
 
-        value = sequenceState.Value;
-        return true;
+        if (state is IntState intState)
+        {
+            value = intState.Value;
+            return true;
+        }
+
+        Logging.Log(LogLevel.Error, $"{LOG_PREFIX}[{nameof(TryReadSequence)}] Sequence not found or not a number: {Constants.Ilp.Paths.ERROR_NUMBER}");
+        return false;
     }
 
     public bool TryEnsureSequenceAtLeast(long value)
@@ -173,14 +180,24 @@ public class IlpErrorStore : IErrorStore
 
     private void AddSequenceChange(ChangeRequest changeRequest, long value)
     {
-        if (Ilp.TryGetState(Constants.Ilp.Paths.ERROR_NUMBER, out var state) && state is LongState sequenceState)
+        if (!Ilp.TryGetState(Constants.Ilp.Paths.ERROR_NUMBER, out var state))
+        {
+            changeRequest.CreateState(new LongState(Constants.Ilp.Paths.ERROR_NUMBER, value));
+        }
+        else if (state is LongState sequenceState)
         {
             sequenceState.Value = value;
             changeRequest.ChangeState(sequenceState);
         }
+        else if (state is IntState intState && value <= int.MaxValue)
+        {
+            intState.Value = (int)value;
+            changeRequest.ChangeState(intState);
+        }
         else
         {
-            changeRequest.CreateState(new LongState(Constants.Ilp.Paths.ERROR_NUMBER, value));
+            // the numbers come from the IdManager; this counter only keeps the numbers of the earlier versions, a state of another type is left as it is
+            Logging.Log(LogLevel.Debug, $"{LOG_PREFIX} The error counter is not a long state, not changed");
         }
     }
 

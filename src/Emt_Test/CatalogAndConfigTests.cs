@@ -277,6 +277,33 @@ public class CatalogAndConfigTests
     }
 
     [TestMethod]
+    public void UT_CFG_02_The_status_colours_come_to_the_frontend_with_defaults_and_a_site_can_change_single_ones()
+    {
+        var ilpConfig = new JObject
+        {
+            ["ModuleVersion"] = "1",
+            ["ModuleInstanceName"] = "x",
+            ["StatusColors"] = new JObject
+            {
+                ["NEW"] = "warning",
+                ["CLOSED"] = new JObject { ["Background"] = "#112233", ["Text"] = "#ffffff" },
+            },
+        };
+
+        Assert.IsTrue(ModuleConfig.TryCreate(Guid.NewGuid(), ilpConfig, DefaultConfig(), out var config));
+
+        var colors = (JObject)config.JsonRepresentation["StatusColors"]!;
+        Assert.AreEqual("warning", (string?)colors["NEW"], "changed by the site");
+        Assert.AreEqual("#112233", (string?)colors["CLOSED"]!["Background"], "own colours");
+        Assert.AreEqual("info", (string?)colors["IN_PROGRESS"], "default stays");
+        Assert.AreEqual("warning", (string?)colors["ACKNOWLEDGED"], "acknowledged and in progress differ");
+        foreach (var status in new[] { "NEW", "ACKNOWLEDGED", "IN_PROGRESS", "RESOLVED", "CLOSED", "REJECTED", "CANCELLED" })
+        {
+            Assert.IsNotNull(colors[status], status);
+        }
+    }
+
+    [TestMethod]
     public void UT_CFG_01_Missing_version_or_out_of_range_values_make_the_config_invalid()
     {
         Assert.IsFalse(ModuleConfig.TryCreate(Guid.NewGuid(), new JObject { ["ModuleInstanceName"] = "x" }, DefaultConfig(), out _), "ModuleVersion missing");

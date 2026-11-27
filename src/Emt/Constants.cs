@@ -30,6 +30,10 @@ public static class Constants
 
             public const string LIST = "List";
             public const string LIVE_UPDATE_DEBOUNCE_MS = "LiveUpdateDebounceMs";
+
+            public const string NOTIFICATIONS = "Notifications";
+            public const string NOTIFICATIONS_ENABLED = "Enabled";
+            public const string NOTIFICATIONS_FACILITY_ID = "FacilityId";
         }
 
         public static class Paths
@@ -91,6 +95,8 @@ public static class Constants
         {
             public const string ERROR_CHANGED = "funcErrorChanged";
             public const string ERROR_CODES_CHANGED = "funcErrorCodesChanged";
+            /// <summary>Asks the page of one user to open the detail of an error (the "Open" button of a notification).</summary>
+            public const string OPEN_ERROR = "funcOpenError";
         }
     }
 

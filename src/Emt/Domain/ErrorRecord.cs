@@ -35,6 +35,9 @@ public class ErrorEvent
 public class ErrorRecord
 {
     public const string NOTIFICATION_NONE = "None";
+    public const string NOTIFICATION_ACTIVE = "Active";
+    public const string NOTIFICATION_ARCHIVED = "Archived";
+    public const string NOTIFICATION_FAILED = "Failed";
 
     public Guid Id { get; set; }
     public long Number { get; set; }
@@ -59,7 +62,7 @@ public class ErrorRecord
     /// <summary>0 as long as the error is not in a final status.</summary>
     public long FinalizedAt { get; set; }
 
-    /// <summary>Reserved by the contract (07 §3) for the Notifications integration, which is not part of this version.</summary>
+    /// <summary>The notification of the error in the Notifications module (FR-24) and its state: None, Active, Archived or Failed.</summary>
     public string NotificationId { get; set; } = string.Empty;
     public string NotificationState { get; set; } = NOTIFICATION_NONE;
 

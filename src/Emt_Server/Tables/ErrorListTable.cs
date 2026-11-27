@@ -27,6 +27,7 @@ public class ErrorListTable : IErrorObserver
     public const string STATUS = "Status";
     public const string REPORTER_NAME = "ReporterName";
     public const string ASSIGNEE_NAME = "AssigneeName";
+    public const string NO_VALUE = "-";
 
     private ManualDictTable? Table;
 
@@ -49,14 +50,17 @@ public class ErrorListTable : IErrorObserver
         [ERROR_NUMBER] = error.ErrorNumber,
         [NUMBER] = error.Number,
         [REPORTED_AT] = error.ReportedAt,
-        [LOCATION_PATH] = error.LocationPath,
+        [LOCATION_PATH] = Text(error.LocationPath),
         [ERROR_CODE] = error.ErrorCode,
         [CODE_TITLE] = error.CodeTitle,
         [SEVERITY] = error.Severity.ToWire(),
         [STATUS] = error.Status.ToWire(),
-        [REPORTER_NAME] = error.ReporterName,
-        [ASSIGNEE_NAME] = error.AssigneeName,
+        [REPORTER_NAME] = Text(error.ReporterName),
+        [ASSIGNEE_NAME] = Text(error.AssigneeName),
     };
+
+    /// <summary>Every column has a filter that offers the values of the rows: a value that is not set is a dash, so the filter does not offer an empty entry.</summary>
+    private static string Text(string value) => value.Length == 0 ? NO_VALUE : value;
 
     /// <param name="fesClient">The client of the table; it has to be the authorizing client, the table checks no permissions itself.</param>
     public bool Initialize(IClient fesClient, ITranslations translations, int debounceMs)

@@ -4,7 +4,7 @@ namespace FSDEV.MOD.Emt.Emt_Server.Storage;
 /// Hands out the error numbers (BR-03, D-07: prefix + at least MinDigits digits). A number is only consumed after the error
 /// was written successfully, so a failed write does not leave a gap. Callers must hold the creation lock of the ErrorService.
 /// </summary>
-public class SequenceService
+public class SequenceService : IErrorNumberSource
 {
     private readonly string Prefix;
     private readonly int MinDigits;
@@ -27,6 +27,13 @@ public class SequenceService
     public long PeekNext() => Current + 1;
 
     public void Commit(long number) => Current = Math.Max(Current, number);
+
+    public bool TryReserve(out long number, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? text)
+    {
+        number = PeekNext();
+        text = Format(number);
+        return true;
+    }
 
     public string Format(long number) => Prefix + number.ToString().PadLeft(MinDigits, '0');
 }

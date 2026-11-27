@@ -151,7 +151,7 @@ public class RetentionTableLocationTests
         Assert.AreEqual("Warning", row["Severity"]);
         Assert.AreEqual("NEW", row["Status"]);
         Assert.AreEqual("anna", row["ReporterName"]);
-        Assert.AreEqual(string.Empty, row["AssigneeName"]);
+        Assert.AreEqual("-", row["AssigneeName"], "a value that is not set is a dash, for the filter");
     }
 
     [TestMethod]

@@ -28,14 +28,21 @@ public class ModuleConfig
     public int ErrorNumberMinDigits { get; private init; }
     public int LiveUpdateDebounceMs { get; private init; }
 
+    /// <summary>When true every new error creates a notification (FR-24). Default false: the Notifications module is optional (NFR-07).</summary>
+    public bool NotificationsEnabled { get; private init; }
+    /// <summary>The facility the notifications of EMT belong to; the notifications table of the Notifications module shows only notifications of a known facility.</summary>
+    public Guid NotificationsFacilityId { get; private init; }
+
     /// <summary>
     /// The merged config that is sent to the frontend with LoadModule. It contains only values the frontend may see.
     /// </summary>
     public JObject JsonRepresentation { get; private init; }
 
     private ModuleConfig(Guid moduleId, bool moduleActive, string moduleVersion, string moduleInstanceName, string translationsPath, int cleanupIntervalHours,
-        bool locationEnabled, int locationFdfVersion, string locationProjectPath, List<string> selectableAreaTypes, string errorNumberPrefix, int errorNumberMinDigits, int liveUpdateDebounceMs, JObject mergedConfig)
+        bool locationEnabled, int locationFdfVersion, string locationProjectPath, List<string> selectableAreaTypes, string errorNumberPrefix, int errorNumberMinDigits, int liveUpdateDebounceMs, bool notificationsEnabled, Guid notificationsFacilityId, JObject mergedConfig)
     {
+        NotificationsEnabled = notificationsEnabled;
+        NotificationsFacilityId = notificationsFacilityId;
         LocationEnabled = locationEnabled;
         ModuleId = moduleId;
         ModuleActive = moduleActive;
@@ -178,7 +185,20 @@ public class ModuleConfig
         // optional switch: missing or not a boolean = enabled, so the location stays mandatory as approved (BR-19)
         var locationEnabled = !location!.TryGetValue(Constants.Ilp.ModuleConfig.LOCATION_ENABLED, out var enabledToken) || enabledToken.Type != JTokenType.Boolean || enabledToken.Value<bool>();
 
-        moduleConfig = new ModuleConfig(moduleId, moduleActive, moduleVersion!, instanceName!, translationsPath!, cleanupIntervalHours, locationEnabled, fdfVersion, projectPath!, areaTypes!, prefix!, minDigits, debounceMs, jsonConfig);
+        // optional section: missing = no notifications; enabled without a valid facility id is switched off with a warning
+        var notificationsEnabled = false;
+        var facilityId = Guid.Empty;
+        if (jsonConfig.TryGetValue(Constants.Ilp.ModuleConfig.NOTIFICATIONS, out var notificationsToken) && notificationsToken is JObject notifications)
+        {
+            notificationsEnabled = notifications.TryGetValue(Constants.Ilp.ModuleConfig.NOTIFICATIONS_ENABLED, out var notificationsEnabledToken) && notificationsEnabledToken.Type == JTokenType.Boolean && notificationsEnabledToken.Value<bool>();
+            if (notificationsEnabled && (!notifications.TryGetValue(Constants.Ilp.ModuleConfig.NOTIFICATIONS_FACILITY_ID, out var facilityToken) || !Guid.TryParse(facilityToken.Value<string>(), out facilityId) || facilityId == Guid.Empty))
+            {
+                Logging.Log(LogLevel.Warning, $"{LOG_PREFIX} Notifications.Enabled is true but Notifications.FacilityId is not a guid, the notifications are switched off");
+                notificationsEnabled = false;
+            }
+        }
+
+        moduleConfig = new ModuleConfig(moduleId, moduleActive, moduleVersion!, instanceName!, translationsPath!, cleanupIntervalHours, locationEnabled, fdfVersion, projectPath!, areaTypes!, prefix!, minDigits, debounceMs, notificationsEnabled, facilityId, jsonConfig);
         return true;
     }
 

@@ -2,6 +2,7 @@ using FSDEV.Common.Logger;
 using FSDEV.Common.Translations;
 using FSDEV.FES.Server.Client;
 using FSDEV.ILP.Intralogistikplattform.SystemState.Client;
+using FSDEV.ILP.Intralogistikplattform.SystemState.Common;
 using FSDEV.ILP.Intralogistikplattform.SystemState.Deserializer;
 using FSDEV.ILP.Intralogistikplattform.SystemState.Messages;
 using FSDEV.ILP.Intralogistikplattform.SystemState.Serializer;
@@ -12,6 +13,7 @@ using FSDEV.MOD.Emt.Emt.ModuleConfig;
 using FSDEV.MOD.Emt.Emt_Server.Catalog;
 using FSDEV.MOD.Emt.Emt_Server.Errors;
 using FSDEV.MOD.Emt.Emt_Server.Locations;
+using FSDEV.MOD.Emt.Emt_Server.Notifications;
 using FSDEV.MOD.Emt.Emt_Server.Security;
 using FSDEV.MOD.Emt.Emt_Server.Storage;
 using FSDEV.MOD.Emt.Emt_Server.Tables;
@@ -26,6 +28,8 @@ public class EmtServer
 {
     private const string LOG_PREFIX = $"[{nameof(EmtServer)}]";
     private static readonly TimeSpan LocationCacheMaxAge = TimeSpan.FromMinutes(10);
+    private const int BaseStatesAttempts = 30;
+    private static readonly TimeSpan BaseStatesRetryDelay = TimeSpan.FromSeconds(10);
 
     private readonly IClient IlpClient;
     private readonly Client<EmtSession, EmtWebsocket> FsClient;
@@ -52,7 +56,8 @@ public class EmtServer
         var internalState = new Dictionary<string, IPrimitiveState>();
         var changeReplies = new BlockingCollection<ChangeReply>();
 
-        var ilpClient = new Client();
+        // the IdManager client works with the ILP client singleton of the process
+        var ilpClient = Singleton<IClient>.Instance;
         ilpClient.Initialize(Constants.Service.APP_NAME, clientStateController, clientNetworking, messageQueue, internalState, changeReplies, serializer, deserializer);
 
         Logging.Log(LogLevel.Info, $"{LOG_PREFIX} IlpClient initialized");
@@ -74,6 +79,13 @@ public class EmtServer
         while (!stoppingToken.IsCancellationRequested && !ilpClient.IsRegistered())
         {
             await Task.Delay(50, stoppingToken);
+        }
+
+        // registered is not synchronized: the states are read right after, so wait until the client has all of them
+        var syncDeadline = DateTime.Now.AddMinutes(3);
+        while (!stoppingToken.IsCancellationRequested && !ilpClient.ClientController().IsReadyToReceive() && DateTime.Now < syncDeadline)
+        {
+            await Task.Delay(100, stoppingToken);
         }
 
         var timeNeededForSynchronization = DateTime.Now - timeStampBegin;
@@ -120,7 +132,7 @@ public class EmtServer
         var permissions = new EmtPermissionService(permissionSource);
 
         var store = new IlpErrorStore(ilp);
-        if (!store.TryEnsureRoots())
+        if (!TryEnsureRootsWithRetry(store))
         {
             Logging.Log(LogLevel.Error, $"{LOG_PREFIX} Cannot create the base states on ILP!");
             return false;
@@ -192,14 +204,43 @@ public class EmtServer
         }
 
         catalog.Changed += errorCodeTable.Refresh;
+        _ = new CatalogWatcher(catalog, StoppingToken).TryStart(ilp);
 
         var push = new ErrorPushService(new FesPushSender(FsClient), permissions);
-        var errors = new ErrorService(store, index, sequence, catalog, locations, permissions, clock, Config.LocationEnabled);
+        // the numbers of new errors come from the IdManager too; the counter above only keeps the numbers of the earlier errors from being given out again
+        var errorNumbers = new IdManagerErrorNumberSource(new IdManagerErrorCodeGenerator(StoppingToken, IdManagerErrorNumberSource.PREFIX));
+        var errors = new ErrorService(store, index, errorNumbers, catalog, locations, permissions, clock, Config.LocationEnabled);
         var myErrorsTables = new MyErrorsTables(FsClient, permissions, index, clock, translations, Config.LiveUpdateDebounceMs);
 
         errors.AddObserver(errorListTable);
         errors.AddObserver(myErrorsTables);
         errors.AddObserver(push);
+
+        if (Config.NotificationsEnabled)
+        {
+            // FR-24…FR-27: the notifications of an error are created for the people concerned and archived in the background, EMT works without the Notifications module
+            var publisher = new IlpNotificationPublisher(ilp, Constants.Service.APP_NAME, Config.NotificationsFacilityId);
+            var notificationObserver = new NotificationObserver(publisher, errors, permissions.HasPermission, () => permissions.GetUsersWithPermission(Constants.Permissions.MANAGE_ERRORS), StoppingToken);
+            publisher.Dismissed = notificationObserver.NotificationDismissed;
+            publisher.OpenRequested = push.SendOpenError;
+            errors.AddObserver(notificationObserver);
+
+            // the notifications of an earlier run: a click on them must work right after the start, not only after a new notification of the type
+            _ = Task.Run(async () =>
+            {
+                // until it works (an hour at most): the Notifications module can be late, and without its client no button of a notification does anything
+                for (var attempt = 1; attempt <= 360 && !StoppingToken.IsCancellationRequested; attempt++)
+                {
+                    if (publisher.TryRegisterExistingTypes())
+                    {
+                        return;
+                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(10), CancellationToken.None);
+                }
+            }, CancellationToken.None);
+            Logging.Log(LogLevel.Info, $"{LOG_PREFIX} Notifications are enabled for facility {Config.NotificationsFacilityId}");
+        }
 
         Retention = new RetentionJob(store, index, settings, clock, error =>
         {
@@ -207,7 +248,11 @@ public class EmtServer
             myErrorsTables.OnErrorChanged(error, ErrorChangeType.Deleted);
         });
 
-        var admin = new CatalogAdminService(catalog, settings, permissions, index, Retention, push, clock);
+        // the codes of new error codes come from the IdManager; without it the series is registered again with the first code that is asked for
+        var codeGenerator = new IdManagerErrorCodeGenerator(StoppingToken);
+        _ = codeGenerator.TryRegister();
+
+        var admin = new CatalogAdminService(catalog, settings, permissions, index, Retention, push, clock, Config.NotificationsEnabled ? "Enabled" : "Disabled", codeGenerator);
 
         var wsMessageHandler = new MessageHandler.MessageHandler(errors, admin, myErrorsTables);
         if (!wsMessageHandler.TryInitialize(FsClient))
@@ -217,6 +262,26 @@ public class EmtServer
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// After a restart of the system the ILP client can still miss part of the states (it syncs ~200k states) and then asks to create
+    /// base states that exist; the server rejects that. The check is repeated, every attempt looks at the states again.
+    /// </summary>
+    private bool TryEnsureRootsWithRetry(IlpErrorStore store)
+    {
+        for (var attempt = 1; attempt <= BaseStatesAttempts; attempt++)
+        {
+            if (store.TryEnsureRoots())
+            {
+                return true;
+            }
+
+            Logging.Log(LogLevel.Warning, $"{LOG_PREFIX} The base states could not be created (attempt {attempt} of {BaseStatesAttempts}), trying again");
+            Thread.Sleep(BaseStatesRetryDelay);
+        }
+
+        return false;
     }
 
     private List<JArray> HandleNewSession(EmtSession session, EmtWebsocket websocket) =>
