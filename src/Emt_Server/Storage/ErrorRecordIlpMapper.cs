@@ -119,7 +119,7 @@ internal static class ErrorRecordIlpMapper
 
         var allPresent = true;
         allPresent &= dict.TryGetString(Keys.ID, out var id);
-        allPresent &= dict.TryGetLong(Keys.NUMBER, out var number);
+        allPresent &= dict.TryGetLongTolerant(Keys.NUMBER, out var number);
         allPresent &= dict.TryGetString(Keys.ERROR_NUMBER, out var errorNumber);
         allPresent &= dict.TryGetString(Keys.CLIENT_REQUEST_ID, out var clientRequestId);
         allPresent &= dict.TryGetString(Keys.STATUS, out var status);
@@ -133,13 +133,13 @@ internal static class ErrorRecordIlpMapper
         allPresent &= dict.TryGetString(Keys.REPORTER_NAME, out var reporterName);
         allPresent &= dict.TryGetString(Keys.ASSIGNEE_USER_ID, out var assigneeUserId);
         allPresent &= dict.TryGetString(Keys.ASSIGNEE_NAME, out var assigneeName);
-        allPresent &= dict.TryGetLong(Keys.REPORTED_AT, out var reportedAt);
-        allPresent &= dict.TryGetLong(Keys.LAST_CHANGED_AT, out var lastChangedAt);
+        allPresent &= dict.TryGetLongTolerant(Keys.REPORTED_AT, out var reportedAt);
+        allPresent &= dict.TryGetLongTolerant(Keys.LAST_CHANGED_AT, out var lastChangedAt);
         allPresent &= dict.TryGetString(Keys.LAST_CHANGED_BY_NAME, out var lastChangedByName);
-        allPresent &= dict.TryGetLong(Keys.FINALIZED_AT, out var finalizedAt);
+        allPresent &= dict.TryGetLongTolerant(Keys.FINALIZED_AT, out var finalizedAt);
         allPresent &= dict.TryGetString(Keys.NOTIFICATION_ID, out var notificationId);
         allPresent &= dict.TryGetString(Keys.NOTIFICATION_STATE, out var notificationState);
-        allPresent &= dict.TryGetInt(Keys.VERSION, out var version);
+        allPresent &= dict.TryGetIntTolerant(Keys.VERSION, out var version);
         allPresent &= dict.TryGetString(Keys.EVENTS, out var eventsJson);
         allPresent &= TryGetCodeTitle(dict, out var codeTitle);
 

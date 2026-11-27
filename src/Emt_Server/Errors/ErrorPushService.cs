@@ -47,6 +47,18 @@ public class ErrorPushService : IErrorObserver
         });
     }
 
+    /// <summary>Tells the pages of one user to open the detail of an error (button of a notification). The page asks for the detail like for every other, so the permission is checked there.</summary>
+    public void SendOpenError(Guid userId, Guid errorId) =>
+        Sender.SendToUsers([userId], new JArray
+        {
+            new JObject
+            {
+                [Constants.Frontend.ID] = Constants.Frontend.EMT_GUID,
+                [Constants.Frontend.Push.OPEN_ERROR] = errorId.ToString(),
+                ["ErrorId"] = errorId.ToString(),
+            }
+        });
+
     /// <summary>Tells everybody who uses the catalog (report form, catalog page) that it changed.</summary>
     public void SendErrorCodesChanged(long version)
     {

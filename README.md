@@ -32,27 +32,51 @@ The module is **inactive by default** (`Active: false`): it then only sends `Loa
 | `TranslationsPath` | `""` (table headers are not translated) |
 | `Retention.CleanupIntervalHours` | `24` |
 | `Location.FdfVersion` / `ProjectPath` / `SelectableAreaTypes` | `1` / `Config/project.json` / `[]` (all area types) |
-| `ErrorNumber.Prefix` / `MinDigits` | `EMT-` / `6` |
+| `ErrorNumber.Prefix` / `MinDigits` | `EMT-` / `6` (only the counter of the errors of earlier versions; new numbers come from the IdManager, series `ER`) |
 | `List.LiveUpdateDebounceMs` | `1000` |
+| `StatusColors` | one entry per status: a tone (`neutral`, `info`, `success`, `warning`, `error`) or `{ "Background": "#...", "Text": "#..." }`; sent to the frontend, a missing status keeps its default (NEW error, ACKNOWLEDGED warning, IN_PROGRESS info, RESOLVED / CLOSED success, REJECTED / CANCELLED neutral) |
 
 ## Notifications
 
-With `Notifications.Enabled: true` and a valid `Notifications.FacilityId` (a facility group of the Notifications module) in `emtConfig.json`, every new error creates one notification (`Notifications_Client`, application name `Emt`):
+With `Notifications.Enabled: true` and a valid `Notifications.FacilityId` (a facility group of the Notifications module) in `emtConfig.json`, every change of an error creates one notification **for each person concerned** (`Notifications_Client`, application name `Emt`). A person only sees the own notifications (the Notifications module filters by recipient).
+
+| Change | Who is told (never the person who made the change) |
+|---|---|
+| New error | every user with Manage-Errors, except the reporter |
+| Assigned / handler changed | the new handler ("assigned to you"), the reporter ("handler is ...") |
+| Status, note, severity | the reporter and the handler |
+| Reporter cancels an error nobody works on | every user with Manage-Errors |
+
+A recipient must still have the permission (reporter: Report-Errors or Manage-Errors; handler/manager: Manage-Errors).
 
 | Item | Value |
 |---|---|
-| Notification types | `EMT_ERROR_INFO`, `EMT_ERROR_WARNING`, `EMT_ERROR_ERROR`, `EMT_ERROR_CRITICAL` (severity level `INFO`, `WARN`, `ERR`, `ERR`), created on first use; message key `EMT_NOTIFICATION_NEW_ERROR` |
-| Custom fields | `ErrorNumber`, `ErrorCode`, `CodeTitle` (+ `_de`, `_en`), `LocationPath`, `ReporterName`, `Severity` |
+| Notification types | `EMT_NOTIF_NEW_ERROR_<SEVERITY>` (icon of the severity), `EMT_NOTIF_ASSIGNED`, `EMT_NOTIF_ASSIGNEE_CHANGED`, `EMT_NOTIF_STATUS_CHANGED`, `EMT_NOTIF_NOTE_ADDED`, `EMT_NOTIF_SEVERITY_CHANGED`, created on first use; message key = type without the severity; texts use `$_prop{Name}` placeholders |
+| Custom fields | `ErrorNumber`, `ErrorCode`, `CodeTitle` (+ `_de`, `_en`), `LocationPath`, `ActorName`, `Detail` (+ `_de`, `_en`), `Severity` |
 | Referenced id | the error id |
-| Archive | when the error is resolved, closed, rejected or cancelled; re-opening a resolved error creates no new notification |
+| Buttons | "Open" opens the error in EMT for the person who pressed it; "OK" moves the notification of that person to the history |
+| Archive | all earlier notifications of an error when it is closed, rejected or cancelled (the notifications of that change stay until "OK"); a resolved error keeps them |
 
-The work runs in the background in the order of the changes (`NotificationObserver`), so a slow or missing Notifications module never delays a report. The result is kept on the error: `NotificationId` and `NotificationState` (`None`, `Active`, `Archived`, `Failed`). EMT starts and works without the Notifications module. The Notifications module shows a notification to everybody; limiting it to the error managers is a task of that module.
+The work runs in the background in the order of the changes (`NotificationObserver`), so a slow or missing Notifications module never delays a report. The result is kept on the error: `NotificationId` (the ids of the active notifications, separated by `;`) and `NotificationState` (`None`, `Active`, `Archived`, `Failed`). EMT starts and works without the Notifications module.
+
+**Fail-closed:** EMT only creates notifications if the Notifications server says it knows recipients (ILP `Notifications/Capabilities/Recipients`). An older Notifications module would show them to everybody, so EMT creates none and logs a warning.
+
+Site setup of the Notifications module: the translations of EMT (`VIS/emt/src/translation/languages`) must be in its `TranslationsPath`; the three scopes of its permissions need a group each in `groups.json`; either set `ActiveNotifications.RowClickButton: "OPEN"` (a click on the row opens the error) or put `BUTTONS` into `ActiveNotifications.Columns` to show the buttons.
 
 Note: the config in ILP is created by ConfigurationManager only once; to switch the notifications on for an existing site the `Notifications` values must be changed in ILP as well, not only in the json file.
 
+## Error codes and error numbers
+
+The code of a new error code (`EC10000001`) and the number of a new error (`ER10000001`) come from the IdManager (`IdManager_Client`, series `EC` and `ER`, registered on first use). Without an answer of the IdManager nothing is created. Errors of earlier versions keep `EMT-000001…`.
+Every numeric field that EMT reads from ILP is read tolerant (`IlpNumberReading`): a long with a small value comes back as an int.
+
+## Handover
+
+See [docs/HANDOVER-2026-11.md](docs/HANDOVER-2026-11.md) (merge order, dependencies, configuration, pitfalls, smoke test) and `docs/examples/`.
+
 ## Known limitations
 
-- Notifications are optional and off by default, see "Notifications" below.
+- Notifications are optional and off by default, see "Notifications" above.
 - The facility structure is read with the IlpParser, which opens its own ILP connection for every read. The locations are cached for 10 minutes.
 - Package versions are the ones available in the local NuGet cache (`FSDEV.FES.Server.Client` 3.7.0, `CSharpControls.Table` 7.2.0, `SystemState_Client` 4.1.0, `Common.Logger` 2.3.0, `UserManager_Client` 6.0.0, `IlpParser` 1.2.0), not the set of `MOD/notifications@develop`.
 - The ChangeRequests against a real ILP were only checked against the ILP library in unit tests, not against a running ILP server.

@@ -7,6 +7,7 @@ using FSDEV.ILP.Intralogistikplattform.SystemState.States.CollectionStates;
 using FSDEV.ILP.Intralogistikplattform.SystemState.States.PrimitiveStates;
 using FSDEV.ILP.Intralogistikplattform.SystemState_Client.Helpers;
 using FSDEV.MOD.Emt.Emt.Domain;
+using FSDEV.MOD.Emt.Emt_Server.Storage;
 using System.Diagnostics.CodeAnalysis;
 using Constants = FSDEV.MOD.Emt.Emt.Constants;
 
@@ -55,6 +56,10 @@ public class IlpCatalogStorage : ICatalogStorage
             if (TryParse(state, out var code))
             {
                 codes.Add(code);
+            }
+            else
+            {
+                Logging.Log(LogLevel.Warning, $"{LOG_PREFIX} The error code {state.Key} could not be read and is skipped");
             }
         }
 
@@ -160,9 +165,9 @@ public class IlpCatalogStorage : ICatalogStorage
         allPresent &= dict.TryGetBool(ACTIVE, out var active);
         allPresent &= dict.TryGetBool(IS_OTHER, out var isOther);
         allPresent &= dict.TryGetString(SCOPE, out var scope);
-        allPresent &= dict.TryGetLong(USED_AT, out var usedAt);
-        allPresent &= dict.TryGetInt(VERSION, out var version);
-        allPresent &= dict.TryGetLong(CHANGED_AT, out var changedAt);
+        allPresent &= dict.TryGetLongTolerant(USED_AT, out var usedAt);
+        allPresent &= dict.TryGetIntTolerant(VERSION, out var version);
+        allPresent &= dict.TryGetLongTolerant(CHANGED_AT, out var changedAt);
         allPresent &= dict.TryGetString(CHANGED_BY, out var changedBy);
 
         if (!allPresent)
@@ -279,9 +284,9 @@ public class IlpSettingsStorage : ISettingsStorage
         }
 
         var allPresent = true;
-        allPresent &= dict.TryGetInt(RETENTION_DAYS, out var retentionDays);
+        allPresent &= dict.TryGetIntTolerant(RETENTION_DAYS, out var retentionDays);
         allPresent &= dict.TryGetBool(OTHER_CODE_ENABLED, out var otherCodeEnabled);
-        allPresent &= dict.TryGetInt(VERSION, out var version);
+        allPresent &= dict.TryGetIntTolerant(VERSION, out var version);
         if (!allPresent)
         {
             return false;

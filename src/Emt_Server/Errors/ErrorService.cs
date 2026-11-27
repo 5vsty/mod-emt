@@ -28,7 +28,7 @@ public class ErrorService : INotificationStateStore
 
     private readonly IErrorStore Store;
     private readonly ErrorIndex Index;
-    private readonly SequenceService Sequence;
+    private readonly IErrorNumberSource Sequence;
     private readonly CatalogStore Catalog;
     private readonly LocationProvider Locations;
     private readonly EmtPermissionService Permissions;
@@ -41,7 +41,7 @@ public class ErrorService : INotificationStateStore
     private readonly bool LocationEnabled;
 
     /// <param name="locationEnabled">false = the facility structure is never read and a report needs no location (config Location.Enabled).</param>
-    public ErrorService(IErrorStore store, ErrorIndex index, SequenceService sequence, CatalogStore catalog, LocationProvider locations, EmtPermissionService permissions, IClock clock, bool locationEnabled = true)
+    public ErrorService(IErrorStore store, ErrorIndex index, IErrorNumberSource sequence, CatalogStore catalog, LocationProvider locations, EmtPermissionService permissions, IClock clock, bool locationEnabled = true)
     {
         LocationEnabled = locationEnabled;
         Store = store;
@@ -174,12 +174,17 @@ public class ErrorService : INotificationStateStore
                 return OperationResult<SubmitResult>.Ok(new SubmitResult(existing, true, !Permissions.HasAnyManager()));
             }
 
-            var number = Sequence.PeekNext();
+            if (!Sequence.TryReserve(out var number, out var errorNumber))
+            {
+                Logging.Log(LogLevel.Error, $"{LOG_PREFIX} No number for a new error (the IdManager did not answer)");
+                return OperationResult<SubmitResult>.Fail(Reasons.UNAVAILABLE);
+            }
+
             record = new ErrorRecord
             {
                 Id = Guid.NewGuid(),
                 Number = number,
-                ErrorNumber = Sequence.Format(number),
+                ErrorNumber = errorNumber,
                 ClientRequestId = clientRequestId,
                 Status = ErrorStatus.New,
                 Severity = code.DefaultSeverity,

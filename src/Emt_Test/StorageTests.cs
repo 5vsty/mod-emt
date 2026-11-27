@@ -38,7 +38,7 @@ internal class FakeIlp : IClientController
     }
 
     /// <summary>Finds a state by its key, also inside the dictionaries that were put in as a whole.</summary>
-    private IBaseState? Resolve(string key)
+    internal IBaseState? Resolve(string key)
     {
         if (States.TryGetValue(key, out var found))
         {

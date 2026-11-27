@@ -1,0 +1,14 @@
+{
+  "148a2949-cec8-402e-873e-afeae198ce9c": {
+    "ModuleVersion": "1.0.0",
+    "ModuleInstanceName": "Notifications",
+    "Active": true,
+    "ReferencedNameIlpKey": "Name",
+    "AllFacilitiesGroupId": "",
+    "TranslationsPath": "<folder with the translations of the notification types, forward slashes, must contain the EMT_NOTIF_* keys of VIS/emt/src/translation/languages>",
+    "ActiveNotifications": {
+      "Columns": ["SEVERITY_LEVEL", "START_DATE", "MESSAGE"],
+      "RowClickButton": "OPEN"
+    }
+  }
+}

@@ -20,5 +20,14 @@
   "Notifications": {
     "Enabled": false,
     "FacilityId": ""
+  },
+  "StatusColors": {
+    "NEW": "error",
+    "ACKNOWLEDGED": "warning",
+    "IN_PROGRESS": "info",
+    "RESOLVED": "success",
+    "CLOSED": "success",
+    "REJECTED": "neutral",
+    "CANCELLED": "neutral"
   }
 }

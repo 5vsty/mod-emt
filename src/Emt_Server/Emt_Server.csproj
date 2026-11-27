@@ -16,6 +16,7 @@
 		<PackageReference Include="FSDEV.Common.Logger" Version="2.3.0" />
 		<PackageReference Include="FSDEV.FES.Server.Client" Version="3.7.0" />
 		<PackageReference Include="FSDEV.ILP.Intralogistikplattform.SystemState_Client" Version="4.1.0" />
+		<PackageReference Include="FSDEV.MOD.IdManager.IdManager_Client" Version="3.1.0" />
 		<PackageReference Include="FSDEV.MOD.Notifications.Notifications_Client" Version="0.0.0" />
 		<PackageReference Include="FSDEV.MOD.UserManager.UserManager_Client" Version="6.0.0" />
 	</ItemGroup>

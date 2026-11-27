@@ -1,0 +1,37 @@
+{
+  "e7931f2f-80a5-4c2c-9899-6de5df71256e": {
+    "ModuleVersion": "1.0.0",
+    "ModuleInstanceName": "Emt",
+    "Active": true,
+    "TranslationsPath": "",
+    "Retention": {
+      "CleanupIntervalHours": 24
+    },
+    "Location": {
+      "Enabled": true,
+      "FdfVersion": 1,
+      "ProjectPath": "Config/project.json",
+      "SelectableAreaTypes": []
+    },
+    "ErrorNumber": {
+      "Prefix": "EMT-",
+      "MinDigits": 6
+    },
+    "List": {
+      "LiveUpdateDebounceMs": 1000
+    },
+    "Notifications": {
+      "Enabled": true,
+      "FacilityId": "<id of a facility (group) that exists in the project; the notification table only shows notifications of a known facility>"
+    },
+    "StatusColors": {
+      "NEW": "error",
+      "ACKNOWLEDGED": "warning",
+      "IN_PROGRESS": "info",
+      "RESOLVED": "success",
+      "CLOSED": "success",
+      "REJECTED": "neutral",
+      "CANCELLED": { "Background": "#e0e0e0", "Text": "#333333" }
+    }
+  }
+}

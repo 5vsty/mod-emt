@@ -1,8 +1,10 @@
 using FSDEV.MOD.Emt.Emt.Domain;
+using FSDEV.MOD.Emt.Emt.Validation;
 using FSDEV.MOD.Emt.Emt_Server.Errors;
 using FSDEV.MOD.Emt.Emt_Server.Security;
 using FSDEV.MOD.Emt.Emt_Server.Storage;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 using Constants = FSDEV.MOD.Emt.Emt.Constants;
 
 namespace FSDEV.MOD.Emt.Emt_Server.Catalog;
@@ -22,11 +24,14 @@ public class CatalogAdminService
     private readonly ErrorPushService Push;
     private readonly IClock Clock;
     private readonly string NotificationsState;
+    private readonly IErrorCodeGenerator? CodeGenerator;
 
     /// <param name="notificationsState">Enabled or Disabled, shown in the health block of the settings page.</param>
-    public CatalogAdminService(CatalogStore catalog, SettingsStore settings, EmtPermissionService permissions, ErrorIndex index, RetentionJob retention, ErrorPushService push, IClock clock, string notificationsState = "Disabled")
+    /// <param name="codeGenerator">Gives every new error code its code; null = the code is typed by the user (tests, old behaviour).</param>
+    public CatalogAdminService(CatalogStore catalog, SettingsStore settings, EmtPermissionService permissions, ErrorIndex index, RetentionJob retention, ErrorPushService push, IClock clock, string notificationsState = "Disabled", IErrorCodeGenerator? codeGenerator = null)
     {
         NotificationsState = notificationsState;
+        CodeGenerator = codeGenerator;
         Catalog = catalog;
         Settings = settings;
         Permissions = permissions;
@@ -54,6 +59,11 @@ public class CatalogAdminService
             return OperationResult<ErrorCode>.Fail(Reasons.FORBIDDEN);
         }
 
+        if (CodeGenerator is not null && !TryGetCode(errorCodeId, title, description, instructions, group, out code, out var failure))
+        {
+            return failure;
+        }
+
         var result = Catalog.Save(errorCodeId, expectedVersion, code, title, description, instructions, group, defaultSeverity, active, GetUserName(userId), Clock.UtcNowMs);
         if (result.Successful)
         {
@@ -61,6 +71,45 @@ public class CatalogAdminService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// The code of a new error code is generated, the code of an existing one never changes: what the page sends as the code is ignored.
+    /// The other fields are checked first, so a number of the series is not used up by a request that is refused anyway.
+    /// </summary>
+    private bool TryGetCode(Guid? errorCodeId, string? title, string? description, string? instructions, string? group, out string? code, [NotNullWhen(false)] out OperationResult<ErrorCode>? failure)
+    {
+        code = null;
+        failure = null;
+
+        if (errorCodeId is Guid id)
+        {
+            var existing = Catalog.GetAll().FirstOrDefault(known => known.Id == id);
+            if (existing is null)
+            {
+                failure = OperationResult<ErrorCode>.Fail(Reasons.NOT_FOUND);
+                return false;
+            }
+
+            code = existing.Code;
+            return true;
+        }
+
+        // any valid code stands in for the one that is not there yet
+        var errors = ErrorCodeValidator.Validate(IdManagerErrorCodeGenerator.PREFIX, title, description, instructions, group);
+        if (errors.Count > 0)
+        {
+            failure = OperationResult<ErrorCode>.Invalid(errors);
+            return false;
+        }
+
+        if (!CodeGenerator!.TryGenerate(out code))
+        {
+            failure = OperationResult<ErrorCode>.Fail(Reasons.UNAVAILABLE);
+            return false;
+        }
+
+        return true;
     }
 
     public OperationResult<bool> DeleteCode(Guid userId, Guid errorCodeId)

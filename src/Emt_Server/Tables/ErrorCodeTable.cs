@@ -23,6 +23,7 @@ public class ErrorCodeTable
     public const string ACTIVE = "Active";
     public const string IS_USED = "IsUsed";
     public const string IS_OTHER = "IsOther";
+    public const string NO_VALUE = "-";
 
     private readonly CatalogStore Catalog;
     private readonly object Lock = new();
@@ -49,12 +50,15 @@ public class ErrorCodeTable
     {
         [CODE] = code.Code,
         [TITLE] = code.Title,
-        [GROUP] = code.Group,
+        [GROUP] = code.Group.Length == 0 ? NO_VALUE : code.Group,
         [DEFAULT_SEVERITY] = code.DefaultSeverity.ToWire(),
-        [ACTIVE] = code.Active,
-        [IS_USED] = code.IsUsed,
+        // every column has a filter that offers the values of the rows: a yes/no is the text "true"/"false" (the page shows it translated), a value that is not set is a dash
+        [ACTIVE] = ToFlag(code.Active),
+        [IS_USED] = ToFlag(code.IsUsed),
         [IS_OTHER] = code.IsOther,
     };
+
+    private static string ToFlag(bool value) => value ? "true" : "false";
 
     /// <param name="fesClient">The client of the table; it has to be the authorizing client, the table checks no permissions itself.</param>
     public bool Initialize(IClient fesClient, ITranslations translations)
